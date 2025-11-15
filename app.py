@@ -87,32 +87,129 @@
 
 
 
-from flask import Flask, request, jsonify, send_from_directory
+# from flask import Flask, request, jsonify, send_from_directory
+# from flask_cors import CORS
+# from gmail_logic import (
+#     classify_email_logic,
+#     get_unread_messages,
+#     decode_mime_words
+# )
+# import os
+
+# app = Flask(__name__, static_url_path='', static_folder='static')
+# CORS(app)
+
+
+# # -------------------------
+# # Root - Serve Frontend
+# # -------------------------
+# @app.route("/")
+# def index():
+#     return send_from_directory("static", "index.html")
+
+
+# # -------------------------
+# # A → Manual Email Classification API
+# # -------------------------
+# @app.route("/classify", methods=["POST"])
+# def classify_email():
+#     data = request.json
+
+#     sender = data.get("sender", "")
+#     subject = data.get("subject", "")
+#     body = data.get("body", "")
+
+#     result = classify_email_logic(sender, subject, body)
+
+#     return jsonify({
+#         "sender": sender,
+#         "subject": subject,
+#         "body": body,
+#         "spam": result["spam"],
+#         "rules_fired": result["rules"]
+#     })
+
+
+# # -------------------------
+# # B → Gmail Integration API
+# # -------------------------
+# @app.route("/gmail/spam_check", methods=["GET"])
+# def gmail_spam_check():
+#     try:
+#         unread_messages = get_unread_messages(max_count=10)
+#         results = []
+
+#         for msg in unread_messages:
+#             msg_id = msg["id"]
+#             sender = msg["sender"]
+#             subject = decode_mime_words(msg["subject"])
+#             body = msg["snippet"]
+
+#             result = classify_email_logic(sender, subject, body)
+
+#             results.append({
+#                 "id": msg_id,
+#                 "sender": sender,
+#                 "subject": subject,
+#                 "spam": result["spam"],
+#                 "rules_fired": result["rules"]
+#             })
+
+#         return jsonify(results)
+
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
+
+
+# # -------------------------
+# # 404 Fallback
+# # -------------------------
+# @app.errorhandler(404)
+# def not_found(e):
+#     return send_from_directory("static", "index.html")
+
+
+# # -------------------------
+# # Render Deployment Port Fix
+# # -------------------------
+# if __name__ == "__main__":
+#     port = int(os.environ.get("PORT", 5000))   # Render gives PORT env variable
+#     app.run(host="0.0.0.0", port=port)
+
+
+
+import os
+import json
+from flask import Flask, request, jsonify, send_from_directory, redirect
 from flask_cors import CORS
+from google_auth_oauthlib.flow import Flow
 from gmail_logic import (
     classify_email_logic,
-    get_unread_messages,
-    decode_mime_words
+    get_unread_messages
 )
-import os
 
-app = Flask(__name__, static_url_path='', static_folder='static')
+app = Flask(__name__, static_folder="static", static_url_path="")
 CORS(app)
 
+os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"  # Allow HTTPS for Render
 
-# -------------------------
-# Root - Serve Frontend
-# -------------------------
+CLIENT_SECRETS_FILE = "credentials.json"
+REDIRECT_URI = "https://gmail-spam-filter.onrender.com/oauth2callback"
+
+
+# -----------------------------------
+# FRONTEND ROUTE
+# -----------------------------------
 @app.route("/")
 def index():
     return send_from_directory("static", "index.html")
 
 
-# -------------------------
-# A → Manual Email Classification API
-# -------------------------
+# -----------------------------------
+# 1. MANUAL EMAIL CLASSIFICATION
+# -----------------------------------
 @app.route("/classify", methods=["POST"])
-def classify_email():
+def classify():
     data = request.json
 
     sender = data.get("sender", "")
@@ -121,57 +218,94 @@ def classify_email():
 
     result = classify_email_logic(sender, subject, body)
 
+    return jsonify(result)
+
+
+# -----------------------------------
+# 2. GOOGLE OAUTH LOGIN
+# -----------------------------------
+@app.route("/login")
+def login():
+    flow = Flow.from_client_secrets_file(
+        CLIENT_SECRETS_FILE,
+        scopes=["https://www.googleapis.com/auth/gmail.readonly"],
+        redirect_uri=REDIRECT_URI,
+    )
+
+    auth_url, _ = flow.authorization_url(
+        prompt="consent",
+        access_type="offline",
+        include_granted_scopes="true"
+    )
+
+    return jsonify({"auth_url": auth_url})
+
+
+# -----------------------------------
+# 3. OAUTH CALLBACK (GOOGLE → RENDER)
+# -----------------------------------
+@app.route("/oauth2callback")
+def oauth_callback():
+    flow = Flow.from_client_secrets_file(
+        CLIENT_SECRETS_FILE,
+        scopes=["https://www.googleapis.com/auth/gmail.readonly"],
+        redirect_uri=REDIRECT_URI,
+    )
+
+    flow.fetch_token(authorization_response=request.url)
+
+    credentials = flow.credentials
+    token_json = credentials.to_json()
+
+    # Return token to frontend
     return jsonify({
-        "sender": sender,
-        "subject": subject,
-        "body": body,
-        "spam": result["spam"],
-        "rules_fired": result["rules"]
+        "message": "Gmail login successful!",
+        "token": token_json
     })
 
 
-# -------------------------
-# B → Gmail Integration API
-# -------------------------
-@app.route("/gmail/spam_check", methods=["GET"])
+# -----------------------------------
+# 4. FETCH USER EMAILS WITH TOKEN
+# -----------------------------------
+@app.route("/gmail/spam_check", methods=["POST"])
 def gmail_spam_check():
-    try:
-        unread_messages = get_unread_messages(max_count=10)
-        results = []
+    user_token = request.json.get("token", None)
 
-        for msg in unread_messages:
-            msg_id = msg["id"]
-            sender = msg["sender"]
-            subject = decode_mime_words(msg["subject"])
-            body = msg["snippet"]
+    if not user_token:
+        return jsonify({"error": "Missing token"}), 400
 
-            result = classify_email_logic(sender, subject, body)
+    emails = get_unread_messages(user_token, max_count=10)
 
-            results.append({
-                "id": msg_id,
-                "sender": sender,
-                "subject": subject,
-                "spam": result["spam"],
-                "rules_fired": result["rules"]
-            })
+    results = []
+    for mail in emails:
+        result = classify_email_logic(
+            mail["sender"],
+            mail["subject"],
+            mail["snippet"],
+        )
 
-        return jsonify(results)
+        results.append({
+            "id": mail["id"],
+            "sender": mail["sender"],
+            "subject": mail["subject"],
+            "spam": result["spam"],
+            "rules_fired": result["rules"]
+        })
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return jsonify(results)
 
 
-# -------------------------
-# 404 Fallback
-# -------------------------
+# -----------------------------------
+# FALLBACK (REACT-LIKE BEHAVIOR)
+# -----------------------------------
 @app.errorhandler(404)
 def not_found(e):
     return send_from_directory("static", "index.html")
 
 
-# -------------------------
-# Render Deployment Port Fix
-# -------------------------
+# -----------------------------------
+# RENDER PORT BINDING
+# -----------------------------------
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))   # Render gives PORT env variable
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
