@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spam Detection Dashboard</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Smooth Fade Animations */
+        .fade-in {
+            animation: fadeIn 0.8s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            from { 
+                opacity: 0; 
+                transform: translateY(20px); 
+            }
+            to { 
+                opacity: 1; 
+                transform: translateY(0); 
+            }
+        }
+
+        /* Stagger Animation for Cards */
+        .card-animate {
+            animation: cardSlideIn 0.6s ease forwards;
+            opacity: 0;
+        }
+
+        .card-animate:nth-child(1) { animation-delay: 0.1s; }
+        .card-animate:nth-child(2) { animation-delay: 0.2s; }
+        .card-animate:nth-child(3) { animation-delay: 0.3s; }
+
+        @keyframes cardSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* Professional Glass UI Card */
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 
+                0 4px 16px rgba(0, 0, 0, 0.2),
+                0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
+        }
+
+        .glass:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.15);
+            box-shadow: 
+                0 8px 24px rgba(0, 0, 0, 0.25),
+                0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Professional Header */
+        header {
+            background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Professional Button Styles */
+        button {
+            font-weight: 500;
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #fetchBtn {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+        }
+
+        #fetchBtn:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        #autoBtn {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+        }
+
+        #autoBtn:hover {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        }
+
+        #resetBtn {
+            background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+            box-shadow: 0 2px 8px rgba(100, 116, 139, 0.3);
+        }
+
+        #resetBtn:hover {
+            background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            box-shadow: 0 4px 12px rgba(100, 116, 139, 0.4);
+        }
+
+        /* Professional Stat Cards */
+        .stat-card {
+            transition: all 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Number Counter Animation */
+        .number-counter {
+            display: inline-block;
+            transition: all 0.2s ease;
+        }
+
+        .number-counter.animate {
+            animation: numberPop 0.3s ease;
+        }
+
+        @keyframes numberPop {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        /* Professional color scheme for stat numbers */
+        #totalEmails {
+            color: #60a5fa;
+        }
+
+        #spamCount {
+            color: #f87171;
+        }
+
+        #safeCount {
+            color: #4ade80;
+        }
+
+        /* Professional Email List Item Styling */
+        .email-item {
+            transition: all 0.2s ease;
+            position: relative;
+            border-left: 3px solid transparent;
+        }
+
+        .email-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 3px;
+            background: #64748b;
+            transform: scaleY(0);
+            transform-origin: top;
+            transition: transform 0.2s ease;
+        }
+
+        .email-item:hover {
+            transform: translateX(4px);
+            border-left-color: #64748b;
+        }
+
+        .email-item:hover::before {
+            transform: scaleY(1);
+        }
+
+        .email-item.spam-item::before {
+            background: #ef4444;
+        }
+
+        .email-item.spam-item:hover {
+            border-left-color: #ef4444;
+        }
+
+        .email-item.safe-item::before {
+            background: #22c55e;
+        }
+
+        .email-item.safe-item:hover {
+            border-left-color: #22c55e;
+        }
+
+        /* Professional Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            transition: background 0.2s ease;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Chart Container */
+        #spamChart {
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+        }
+
+        /* Loading Animation */
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        .loading {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 2rem;
+            }
+            
+            .glass {
+                backdrop-filter: blur(8px);
+                -webkit-backdrop-filter: blur(8px);
+            }
+
+            button {
+                font-size: 0.875rem;
+                padding: 0.75rem 1.5rem;
+            }
+
+            .stat-card {
+                padding: 1.5rem;
+            }
+
+            #totalEmails, #spamCount, #safeCount {
+                font-size: 2.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            header h1 {
+                font-size: 1.5rem;
+            }
+
+            header p {
+                font-size: 0.875rem;
+            }
+
+            button {
+                width: 100%;
+                margin-bottom: 0.5rem;
+            }
+        }
+
+        /* Smooth Transitions */
+        a, button, .glass, .email-item, .stat-card {
+            transition: all 0.2s ease;
+        }
+
+        /* Professional Typography */
+        h1, h2 {
+            letter-spacing: -0.01em;
+            font-weight: 700;
+        }
+
+        /* Section Headings */
+        .glass h2 {
+            position: relative;
+            padding-bottom: 0.5rem;
+        }
+
+        .glass h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 50px;
+            height: 2px;
+            background: #64748b;
+            border-radius: 1px;
+        }
+
+        /* Focus States for Accessibility */
+        button:focus-visible {
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
+        }
+
+        /* Selection Styling */
+        ::selection {
+            background: rgba(59, 130, 246, 0.3);
+            color: #fff;
+        }
+
+        ::-moz-selection {
+            background: rgba(59, 130, 246, 0.3);
+            color: #fff;
+        }
+
+        /* Smooth Page Load */
+        @keyframes pageLoad {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        body {
+            animation: pageLoad 0.4s ease-out;
+        }
+
+        /* Button Layout */
+        button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        /* Border Radius */
+        .glass, button {
+            border-radius: 0.75rem;
+        }
+
+        /* Improved Spacing and Layout */
+        header {
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+        }
+
+        header h1 {
+            margin-bottom: 0.5rem;
+            font-size: 2.5rem;
+            color: #fff;
+            font-weight: 700;
+        }
+
+        header p {
+            font-size: 1rem;
+            opacity: 0.9;
+            color: rgba(255, 255, 255, 0.9);
+            margin: 0;
+        }
+
+        /* Main Container Spacing */
+        .max-w-6xl {
+            padding: 2rem 1.5rem;
+        }
+
+        /* Button Group Spacing */
+        .flex.flex-wrap.justify-center {
+            gap: 1rem;
+            margin-bottom: 2.5rem;
+        }
+
+        button {
+            padding: 0.875rem 1.75rem;
+            font-size: 0.9375rem;
+            font-weight: 500;
+            min-width: 160px;
+        }
+
+        /* Stat Cards Spacing */
+        .stat-card {
+            padding: 2rem 1.5rem;
+        }
+
+        .stat-card p {
+            margin-bottom: 1rem;
+            font-size: 0.9375rem;
+            letter-spacing: 0.025em;
+            color: rgba(255, 255, 255, 0.7);
+            font-weight: 500;
+        }
+
+        .stat-card h2 {
+            font-size: 3rem;
+            line-height: 1.2;
+            margin: 0;
+            font-weight: 700;
+        }
+
+        /* Email List Section Spacing */
+        .glass.p-8 {
+            padding: 2rem;
+        }
+
+        .glass h2 {
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+            color: rgba(255, 255, 255, 0.95);
+            font-weight: 600;
+        }
+
+        .glass > div:first-child {
+            margin-bottom: 1.5rem;
+        }
+
+        /* Filter Tabs Styling */
+        .filter-tabs {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .filter-tab {
+            padding: 0.625rem 1.25rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .filter-tab:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .filter-tab.active {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: rgba(59, 130, 246, 0.4);
+            color: #60a5fa;
+        }
+
+        /* Search Container */
+        .search-container {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.875rem 1rem 0.875rem 2.75rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.5rem;
+            color: #fff;
+            font-size: 0.9375rem;
+            transition: all 0.2s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(59, 130, 246, 0.5);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .search-input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.875rem;
+        }
+
+        /* Badge Styling */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.375rem 0.875rem;
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 1rem;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: #60a5fa;
+        }
+
+        /* Email List Spacing */
+        #emailList {
+            margin-top: 1.5rem;
+        }
+
+        .email-item {
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .email-item:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Email Item Content Spacing */
+        .email-header {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .email-icon {
+            flex-shrink: 0;
+            width: 2.5rem;
+            height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0.5rem;
+            font-size: 1.125rem;
+        }
+
+        .email-item.spam-item .email-icon {
+            color: #f87171;
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .email-item.safe-item .email-icon {
+            color: #4ade80;
+            background: rgba(34, 197, 94, 0.1);
+        }
+
+        .email-item p {
+            margin-bottom: 0.5rem;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .email-item strong {
+            color: rgba(255, 255, 255, 0.6);
+            font-weight: 500;
+        }
+
+        .email-item .border-t {
+            margin-top: 1rem;
+            padding-top: 1rem;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 0.5rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        /* Skeleton Loading */
+        .skeleton {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0.75rem;
+            animation: skeletonPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes skeletonPulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        /* Improved Grid Spacing */
+        .grid {
+            gap: 1.5rem;
+        }
+
+        /* Section Spacing */
+        .mb-10 {
+            margin-bottom: 2.5rem;
+        }
+
+        /* Responsive Spacing Adjustments */
+        @media (max-width: 768px) {
+            header {
+                padding: 2rem 1rem;
+            }
+
+            header h1 {
+                font-size: 2rem;
+            }
+
+            .max-w-6xl {
+                padding: 1.5rem 1rem;
+            }
+
+            .flex.flex-wrap.justify-center {
+                margin-bottom: 2rem;
+                gap: 0.75rem;
+            }
+
+            button {
+                min-width: auto;
+                flex: 1;
+                max-width: 100%;
+            }
+
+            .stat-card {
+                padding: 1.5rem 1rem;
+            }
+
+            .stat-card h2 {
+                font-size: 2.5rem;
+            }
+
+            .glass.p-8 {
+                padding: 1.5rem;
+            }
+
+            .filter-tabs {
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+
+            .filter-tab {
+                flex: 1;
+                min-width: 80px;
+                text-align: center;
+            }
+        }
+
+        @media (max-width: 480px) {
+            header h1 {
+                font-size: 1.5rem;
+            }
+
+            .stat-card h2 {
+                font-size: 2rem;
+            }
+
+            .email-item {
+                padding: 1.25rem;
+            }
+
+            .email-header {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+        }
+    </style>
+</head>
+
+<body class="text-gray-100">
+
+    <!-- Header Section -->
+    <header>
+        <h1>📬 Gmail Spam Detection Dashboard</h1>
+        <p>Powered by Propositional Logic + Gmail API</p>
+    </header>
+
+    <!-- Main Container -->
+    <div class="max-w-6xl mx-auto fade-in">
+
+        <!-- Action Buttons -->
+        <div class="flex flex-wrap justify-center">
+            <button id="fetchBtn" class="text-white">
+                🔄 Fetch Gmail Emails
+            </button>
+
+            <button id="autoBtn" class="text-white">
+                ⏱ Start Auto Spam Scan
+            </button>
+
+            <button id="resetBtn" class="text-white">
+                ♻ Reset UI
+            </button>
+        </div>
+
+        <!-- Dashboard Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 mb-10">
+
+            <!-- Total Emails -->
+            <div class="glass stat-card card-animate text-center">
+                <p>Total Emails</p>
+                <h2 id="totalEmails" class="number-counter">0</h2>
+            </div>
+
+            <!-- Spam Count -->
+            <div class="glass stat-card card-animate text-center">
+                <p>Spam Emails</p>
+                <h2 id="spamCount" class="number-counter">0</h2>
+            </div>
+
+            <!-- Safe Emails -->
+            <div class="glass stat-card card-animate text-center">
+                <p>Not Spam</p>
+                <h2 id="safeCount" class="number-counter">0</h2>
+            </div>
+
+        </div>
+
+        <!-- Chart Section
+        <div class="glass p-8 rounded-2xl mb-10">
+            <h2 class="text-2xl font-semibold mb-6 text-gray-100">
+                <i class="fas fa-chart-pie mr-2"></i>Spam vs Non-Spam Ratio
+            </h2>
+            <div class="chart-container">
+                <canvas id="spamChart"></canvas>
+            </div>
+        </div> -->
+
+        <!-- Email List -->
+        <div class="glass">
+            <div class="flex items-center justify-between">
+                <h2>📩 Email Classification Results</h2>
+                <span id="emailCount" class="badge">0 emails</span>
+            </div>
+
+            <!-- Filter Tabs -->
+            <div class="filter-tabs">
+                <div class="filter-tab active" data-filter="all">
+                    <i class="fas fa-th mr-2"></i>All
+                </div>
+                <div class="filter-tab" data-filter="spam">
+                    <i class="fas fa-ban mr-2"></i>Spam
+                </div>
+                <div class="filter-tab" data-filter="safe">
+                    <i class="fas fa-shield-check mr-2"></i>Safe
+                </div>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="search-container">
+                <input type="text" id="searchInput" class="search-input" placeholder="Search emails by sender or subject...">
+                <i class="fas fa-search search-icon"></i>
+            </div>
+
+            <!-- Loading Skeleton -->
+            <div id="loadingSkeleton" class="hidden">
+                <div class="space-y-4">
+                    <div class="skeleton p-5 rounded-xl h-32"></div>
+                    <div class="skeleton p-5 rounded-xl h-32"></div>
+                    <div class="skeleton p-5 rounded-xl h-32"></div>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="empty-state hidden">
+                <i class="fas fa-inbox"></i>
+                <h3 class="text-xl font-semibold mb-2">No emails found</h3>
+                <p>Click "Fetch Gmail Emails" to start analyzing your inbox</p>
+            </div>
+
+            <!-- Email List -->
+            <ul id="emailList" class="space-y-4 max-h-[500px] overflow-y-auto pr-2"></ul>
+        </div>
+
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        let chart; // For Chart.js instance
+        let allEmails = []; // Store all emails for filtering
+        let currentFilter = 'all'; // Current filter state
+
+        // UI Elements
+        const fetchBtn = document.getElementById("fetchBtn");
+        const autoBtn = document.getElementById("autoBtn");
+        const resetBtn = document.getElementById("resetBtn");
+
+        const totalEmailsEl = document.getElementById("totalEmails");
+        const spamCountEl = document.getElementById("spamCount");
+        const safeCountEl = document.getElementById("safeCount");
+        const emailListEl = document.getElementById("emailList");
+        const searchInput = document.getElementById("searchInput");
+        const emailCountEl = document.getElementById("emailCount");
+        const loadingSkeleton = document.getElementById("loadingSkeleton");
+        const emptyState = document.getElementById("emptyState");
+        const filterTabs = document.querySelectorAll(".filter-tab");
+
+        // Initialize floating particles
+        function initParticles() {
+            const particlesContainer = document.getElementById("particles");
+            const particleCount = 30;
+
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement("div");
+                particle.className = "particle";
+                particle.style.left = Math.random() * 100 + "%";
+                particle.style.animationDelay = Math.random() * 15 + "s";
+                particle.style.animationDuration = (Math.random() * 10 + 10) + "s";
+                particlesContainer.appendChild(particle);
+            }
+        }
+
+        // Toast Notification System
+        function showToast(message, type = 'info') {
+            const toast = document.createElement("div");
+            toast.className = `toast ${type}`;
+            
+            const icons = {
+                success: '<i class="fas fa-check-circle mr-2"></i>',
+                error: '<i class="fas fa-exclamation-circle mr-2"></i>',
+                warning: '<i class="fas fa-exclamation-triangle mr-2"></i>',
+                info: '<i class="fas fa-info-circle mr-2"></i>'
+            };
+
+            toast.innerHTML = `${icons[type] || icons.info}${message}`;
+            document.getElementById("toastContainer").appendChild(toast);
+
+            setTimeout(() => toast.classList.add("show"), 100);
+
+            setTimeout(() => {
+                toast.classList.remove("show");
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        fetchBtn.addEventListener("click", async () => {
+            fetchBtn.disabled = true;
+            fetchBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Fetching...';
+            fetchBtn.classList.add("loading");
+
+            // Show loading skeleton
+            loadingSkeleton.classList.remove("hidden");
+            emailListEl.innerHTML = "";
+            emptyState.classList.add("hidden");
+
+            try {
+                const res = await fetch("/gmail/spam_check");
+                const data = await res.json();
+
+                fetchBtn.innerHTML = '<i class="fas fa-sync-alt mr-2"></i>Fetch Gmail Emails';
+                fetchBtn.disabled = false;
+                fetchBtn.classList.remove("loading");
+
+                // Hide loading skeleton
+                loadingSkeleton.classList.add("hidden");
+                
+                // Store all emails for filtering
+                allEmails = data || [];
+
+                // Update dashboard and display emails
+                if (allEmails.length > 0) {
+                    updateDashboard(allEmails);
+                    displayEmails(allEmails);
+                    drawChart(allEmails);
+                    showToast(`Successfully fetched ${allEmails.length} emails`, 'success');
+                } else {
+                    // If no emails, show empty state
+                    updateDashboard([]);
+                    displayEmails([]);
+                    showToast("No emails found in your inbox", 'info');
+                }
+            } catch (error) {
+                fetchBtn.innerHTML = '<i class="fas fa-sync-alt mr-2"></i>Fetch Gmail Emails';
+                fetchBtn.disabled = false;
+                fetchBtn.classList.remove("loading");
+                loadingSkeleton.classList.add("hidden");
+                emptyState.classList.remove("hidden");
+                showToast("Error fetching emails. Please try again.", 'error');
+                console.error(error);
+            }
+        });
+
+        // Update Dashboard Numbers with Animation
+        function updateDashboard(data) {
+            const total = data.length;
+            const spam = data.filter(e => e.spam).length;
+            const safe = total - spam;
+
+            animateNumber(totalEmailsEl, total);
+            animateNumber(spamCountEl, spam);
+            animateNumber(safeCountEl, safe);
+
+            // Update percentages
+            const spamPercent = total > 0 ? Math.round((spam / total) * 100) : 0;
+            const safePercent = total > 0 ? Math.round((safe / total) * 100) : 0;
+
+            document.getElementById("spamPercentage").textContent = `${spamPercent}%`;
+            document.getElementById("safePercentage").textContent = `${safePercent}%`;
+            document.getElementById("totalPercentage").textContent = "100%";
+        }
+
+        // Animate number counter
+        function animateNumber(element, targetValue) {
+            const currentValue = parseInt(element.textContent) || 0;
+            
+            if (currentValue === targetValue) {
+                return;
+            }
+
+            const increment = targetValue > currentValue ? 1 : -1;
+            const duration = 800;
+            const steps = Math.abs(targetValue - currentValue);
+            const stepDuration = steps > 0 ? duration / steps : 0;
+
+            let current = currentValue;
+            
+            if (stepDuration === 0) {
+                element.textContent = targetValue;
+                return;
+            }
+
+            const timer = setInterval(() => {
+                current += increment;
+                element.textContent = current;
+                element.classList.add('animate');
+                setTimeout(() => element.classList.remove('animate'), 500);
+
+                if (current === targetValue) {
+                    clearInterval(timer);
+                    element.textContent = targetValue;
+                }
+            }, stepDuration);
+        }
+
+        // Display Emails in List
+        function displayEmails(data) {
+            // Clear the email list first
+            emailListEl.innerHTML = "";
+
+            // Always hide empty state first, then show it only if needed
+            emptyState.classList.add("hidden");
+            loadingSkeleton.classList.add("hidden");
+
+            if (!data || data.length === 0) {
+                // Check if we have emails but they're filtered out
+                const hasSearchTerm = searchInput.value.trim().length > 0;
+                const isFiltered = currentFilter !== 'all';
+                
+                if (allEmails.length > 0 && (hasSearchTerm || isFiltered)) {
+                    // Emails exist but are filtered out
+                    emptyState.querySelector('h3').textContent = 'No emails match your filter';
+                    emptyState.querySelector('p').textContent = 'Try adjusting your search or filter criteria';
+                } else {
+                    // No emails at all
+                    emptyState.querySelector('h3').textContent = 'No emails found';
+                    emptyState.querySelector('p').textContent = 'Click "Fetch Gmail Emails" to start analyzing your inbox';
+                }
+                
+                emptyState.classList.remove("hidden");
+                emailCountEl.textContent = "0 emails";
+                return;
+            }
+
+            // Update email count
+            emailCountEl.textContent = `${data.length} email${data.length !== 1 ? 's' : ''}`;
+
+            data.forEach((email, index) => {
+                const li = document.createElement("li");
+                li.className = `p-5 rounded-xl glass email-item ${email.spam ? 'spam-item' : 'safe-item'}`;
+                li.style.animationDelay = `${index * 0.05}s`;
+                li.style.opacity = '0';
+                li.style.animation = 'fadeIn 0.5s ease forwards';
+                li.dataset.emailType = email.spam ? 'spam' : 'safe';
+                li.dataset.sender = (email.sender || '').toLowerCase();
+                li.dataset.subject = (email.subject || '').toLowerCase();
+
+                const icon = email.spam ? 'fa-ban' : 'fa-shield-check';
+                const statusText = email.spam ? "SPAM" : "SAFE";
+                const statusColor = email.spam ? 'text-red-400' : 'text-green-400';
+
+                li.innerHTML = `
+                    <div class="email-header">
+                        <div class="email-icon">
+                            <i class="fas ${icon}"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-start justify-between mb-2">
+                                <p class="text-xl font-bold ${statusColor}">
+                                    ${statusText}
+                                </p>
+                                <span class="text-xs text-gray-500 font-medium">#${index + 1}</span>
+                            </div>
+
+                            <p class="mt-2 text-gray-200 font-medium">
+                                <i class="fas fa-user text-gray-500 mr-2"></i>
+                                <strong class="text-gray-400">From:</strong> ${email.sender || 'Unknown'}
+                            </p>
+
+                            <p class="text-gray-300 mt-2">
+                                <i class="fas fa-envelope text-gray-500 mr-2"></i>
+                                <strong class="text-gray-400">Subject:</strong> ${email.subject || 'No Subject'}
+                            </p>
+
+                            <div class="mt-3 pt-3 border-t border-gray-700">
+                                <p class="text-xs text-gray-500 font-medium mb-1">
+                                    <i class="fas fa-list-check mr-1"></i>Rules Triggered:
+                                </p>
+                                <div class="flex flex-wrap gap-2">
+                                    ${email.rules_fired && email.rules_fired.length > 0 
+                                        ? email.rules_fired.map(rule => 
+                                            `<span class="badge">${rule}</span>`
+                                        ).join('')
+                                        : '<span class="text-sm text-gray-500">None</span>'
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                emailListEl.appendChild(li);
+            });
+        }
+
+        // Filter functionality
+        function filterEmails() {
+            const searchTerm = searchInput.value.toLowerCase();
+            let filtered = allEmails;
+
+            // Apply type filter
+            if (currentFilter !== 'all') {
+                filtered = filtered.filter(email => 
+                    currentFilter === 'spam' ? email.spam : !email.spam
+                );
+            }
+
+            // Apply search filter
+            if (searchTerm) {
+                filtered = filtered.filter(email => 
+                    (email.sender || '').toLowerCase().includes(searchTerm) ||
+                    (email.subject || '').toLowerCase().includes(searchTerm)
+                );
+            }
+
+            displayEmails(filtered);
+        }
+
+        // Filter tab event listeners
+        filterTabs.forEach(tab => {
+            tab.addEventListener("click", () => {
+                filterTabs.forEach(t => t.classList.remove("active"));
+                tab.classList.add("active");
+                currentFilter = tab.dataset.filter;
+                filterEmails();
+            });
+        });
+
+        // Search input event listener
+        searchInput.addEventListener("input", filterEmails);
+
+        // Pie Chart with Enhanced Styling
+        function drawChart(data) {
+            const chartCanvas = document.getElementById("spamChart");
+            if (!chartCanvas) {
+                // Chart section is commented out, skip chart rendering
+                return;
+            }
+
+            const spam = data.filter(e => e.spam).length;
+            const safe = data.length - spam;
+
+            const ctx = chartCanvas.getContext("2d");
+
+            if (chart) chart.destroy();
+
+            chart = new Chart(ctx, {
+                type: "pie",
+                data: {
+                    labels: ["Spam", "Not Spam"],
+                    datasets: [{
+                        data: [spam, safe],
+                        backgroundColor: [
+                            "rgba(239, 68, 68, 0.8)",
+                            "rgba(34, 197, 94, 0.8)"
+                        ],
+                        borderColor: [
+                            "rgba(239, 68, 68, 1)",
+                            "rgba(34, 197, 94, 1)"
+                        ],
+                        borderWidth: 3,
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    animation: {
+                        animateRotate: true,
+                        animateScale: true,
+                        duration: 1000
+                    },
+                    plugins: {
+                        legend: { 
+                            position: "bottom",
+                            labels: {
+                                color: "#e5e7eb",
+                                font: {
+                                    size: 14,
+                                    weight: '600'
+                                },
+                                padding: 20
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            borderColor: 'rgba(255, 255, 255, 0.2)',
+                            borderWidth: 1,
+                            padding: 12,
+                            cornerRadius: 8
+                        }
+                    }
+                }
+            });
+        }
+
+        // Auto Scan Button
+        autoBtn.addEventListener("click", async () => {
+            autoBtn.disabled = true;
+            autoBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Starting...';
+            
+            try {
+                const res = await fetch("/gmail/start_auto_scan");
+                const data = await res.json();
+                showToast(data.status || "Auto scan started successfully", 'success');
+            } catch (error) {
+                showToast("Failed to start auto scan", 'error');
+            } finally {
+                autoBtn.disabled = false;
+                autoBtn.innerHTML = '<i class="fas fa-clock mr-2"></i>Start Auto Spam Scan';
+            }
+        });
+
+        resetBtn.addEventListener("click", () => {
+            emailListEl.innerHTML = "";
+            spamCountEl.textContent = 0;
+            safeCountEl.textContent = 0;
+            totalEmailsEl.textContent = 0;
+            document.getElementById("spamPercentage").textContent = "0%";
+            document.getElementById("safePercentage").textContent = "0%";
+            document.getElementById("totalPercentage").textContent = "0%";
+            emailCountEl.textContent = "0 emails";
+            searchInput.value = "";
+            allEmails = [];
+            currentFilter = 'all';
+            filterTabs.forEach(t => t.classList.remove("active"));
+            filterTabs[0].classList.add("active");
+            emptyState.classList.remove("hidden");
+            if (chart) chart.destroy();
+            showToast("Dashboard reset successfully", 'info');
+        });
+
+        // Initialize on page load
+        initParticles();
+    </script>
+
+</body>
+</html>
